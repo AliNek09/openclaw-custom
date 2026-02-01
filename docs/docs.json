@@ -1117,7 +1117,8 @@
               "platforms/fly",
               "platforms/hetzner",
               "platforms/gcp",
-              "platforms/exe-dev"
+              "platforms/exe-dev",
+              "platforms/remote-server-setup"
             ]
           },
           {

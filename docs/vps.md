@@ -23,6 +23,8 @@ deployments work at a high level.
 - **AWS (EC2/Lightsail/free tier)**: works well too. Video guide:
   https://x.com/techfrenAJ/status/2014934471095812547
 
+**Comprehensive security guide**: [Remote Server Setup (Security + Sandbox)](/platforms/remote-server-setup) — detailed guide covering security hardening, Claude Code integration, and sandbox isolation (Russian/English).
+
 ## How cloud setups work
 
 - The **Gateway runs on the VPS** and owns state + workspace.
