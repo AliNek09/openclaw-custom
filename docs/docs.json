@@ -882,6 +882,7 @@
               "install/ansible",
               "install/nix",
               "install/docker",
+              "install/remote-server-setup",
               "railway",
               "render",
               "northflank",
@@ -1117,8 +1118,7 @@
               "platforms/fly",
               "platforms/hetzner",
               "platforms/gcp",
-              "platforms/exe-dev",
-              "platforms/remote-server-setup"
+              "platforms/exe-dev"
             ]
           },
           {
