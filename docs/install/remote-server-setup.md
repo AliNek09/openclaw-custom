@@ -164,37 +164,128 @@ openclaw onboard
 
 ### 2.3 Настройка Claude Code как AI-провайдера
 
-Claude Code использует подписочную модель через Anthropic. Для настройки:
+Claude Code использует **подписочную модель** (Claude Max/Pro), которая работает через `setup-token`. Это НЕ API с ключами — это токен от вашей подписки Claude.
 
-**Вариант A: API ключ Anthropic (рекомендуется)**
+#### Шаг 1: Установка Claude CLI на сервере
+
+Сначала нужно установить Claude CLI на удалённом сервере:
 
 ```bash
-# Создайте API ключ в Anthropic Console
-# https://console.anthropic.com/
+# Установите Claude CLI через npm
+npm install -g @anthropic-ai/claude-code
 
-# Добавьте ключ в переменные окружения
-echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.bashrc
-source ~/.bashrc
-
-# Или сохраните в ~/.openclaw/.env для автозагрузки
-echo 'ANTHROPIC_API_KEY=your-api-key-here' >> ~/.openclaw/.env
-
-# Проверьте статус
-openclaw models status
+# Проверьте установку
+claude --version
 ```
 
-**Вариант B: Claude Setup Token (для подписки Claude Max/Pro)**
+#### Шаг 2: Авторизация Claude CLI
+
+Claude CLI требует интерактивную сессию для авторизации. Подключитесь к серверу через SSH с X11 forwarding или используйте setup-token:
+
+**Метод A: Интерактивная авторизация (если есть браузер на сервере)**
 
 ```bash
-# Если у вас есть Claude CLI установленный
+# Запустите авторизацию - откроется браузер
+claude login
+```
+
+**Метод B: Setup Token (рекомендуется для headless серверов)**
+
+Если на сервере нет браузера, сгенерируйте токен на локальном компьютере:
+
+```bash
+# На ЛОКАЛЬНОМ компьютере (где есть браузер и Claude CLI):
 claude setup-token
 
-# Затем добавьте токен в OpenClaw
+# Это откроет браузер, вы авторизуетесь, и получите токен вида:
+# clsig_xxx...
+# Скопируйте этот токен!
+```
+
+#### Шаг 3: Настройка токена в OpenClaw
+
+Теперь на УДАЛЁННОМ сервере добавьте токен в OpenClaw:
+
+```bash
+# На УДАЛЁННОМ СЕРВЕРЕ:
+
+# Вариант 1: Если Claude CLI установлен и вы хотите использовать его напрямую
 openclaw models auth setup-token --provider anthropic
+# Введите токен, когда будет запрошено
+
+# Вариант 2: Вставить токен вручную
+openclaw models auth paste-token --provider anthropic
+# Введите токен clsig_xxx...
 
 # Проверьте статус
 openclaw models status
 ```
+
+Вы должны увидеть что-то вроде:
+
+```
+Provider: anthropic
+  Profile: anthropic:default
+  Status: ✓ valid
+  Expires: 2026-03-01 (in 27 days)
+```
+
+#### Шаг 4: Сохранение токена для автозапуска
+
+Чтобы токен загружался при запуске Gateway как службы:
+
+```bash
+# Токен автоматически сохраняется в:
+# ~/.openclaw/agents/<agentId>/agent/auth-profiles.json
+
+# Проверьте, что токен доступен для Gateway:
+openclaw doctor
+```
+
+#### Важные замечания о подписочной модели
+
+1. **Токен имеет срок действия** — обычно 30 дней. Нужно периодически обновлять:
+   ```bash
+   # Проверка статуса токена
+   openclaw models status --check
+   
+   # Если токен истекает, сгенерируйте новый на локальном ПК и вставьте:
+   openclaw models auth paste-token --provider anthropic
+   ```
+
+2. **Требуется активная подписка Claude Max или Pro** — подписка на claude.ai
+
+3. **Токен привязан к Claude Code** — это специальный токен только для Claude Code, он не работает как обычный API ключ
+
+4. **НЕ используйте API ключи** — если у вас подписка Claude Max/Pro, используйте setup-token, а не API ключи из console.anthropic.com
+
+#### Автоматическое обновление токена (опционально)
+
+Для автоматизации можно настроить напоминание:
+
+```bash
+# Добавьте в crontab проверку каждый день
+crontab -e
+
+# Добавьте строку (проверка в 9:00 каждый день):
+0 9 * * * /usr/bin/openclaw models status --check || echo "Claude token expiring!" | mail -s "OpenClaw Auth Warning" your@email.com
+```
+
+#### Альтернатива: API ключ Anthropic
+
+Если у вас есть платный доступ к Anthropic API (отдельно от подписки Claude), можете использовать API ключ:
+
+```bash
+# Создайте API ключ в Anthropic Console: https://console.anthropic.com/
+
+# Сохраните в ~/.openclaw/.env для автозагрузки
+echo 'ANTHROPIC_API_KEY=sk-ant-xxx...' >> ~/.openclaw/.env
+
+# Проверьте статус
+openclaw models status
+```
+
+**Примечание**: API ключи и подписка Claude — это разные продукты. Подписка Claude Max/Pro использует setup-token.
 
 ---
 
@@ -883,15 +974,54 @@ cd /tmp/openclaw-source
 
 ### Claude Code API ошибки
 
+**Проблема: "No credentials found"**
+
 ```bash
 # Проверьте статус модели
 openclaw models status
 
-# Проверьте переменные окружения
-env | grep ANTHROPIC
+# Если нет токена, добавьте его
+# (токен генерируется на локальном ПК через 'claude setup-token')
+openclaw models auth paste-token --provider anthropic
+```
 
-# Обновите токен
-openclaw models auth setup-token --provider anthropic
+**Проблема: "Token expired" или "Token expiring"**
+
+```bash
+# Проверьте срок действия
+openclaw models status --check
+
+# Сгенерируйте новый токен на локальном ПК:
+# claude setup-token
+# Затем вставьте на сервере:
+openclaw models auth paste-token --provider anthropic
+```
+
+**Проблема: "This credential is only authorized for use with Claude Code"**
+
+Это нормально! Токен от `claude setup-token` предназначен именно для Claude Code и работает с OpenClaw.
+
+**Проблема: Claude CLI не установлен на сервере**
+
+```bash
+# Установите Claude CLI
+npm install -g @anthropic-ai/claude-code
+
+# Проверьте
+claude --version
+```
+
+**Проблема: Не могу авторизоваться на headless сервере**
+
+Используйте setup-token с локального компьютера:
+
+```bash
+# На ЛОКАЛЬНОМ ПК (где есть браузер):
+claude setup-token
+
+# Скопируйте полученный токен clsig_xxx...
+# На СЕРВЕРЕ:
+openclaw models auth paste-token --provider anthropic
 ```
 
 ---
@@ -911,12 +1041,22 @@ openclaw models auth setup-token --provider anthropic
 ## Быстрый старт (TL;DR)
 
 ```bash
-# 1. На сервере: установка
+# 1. На сервере: установка OpenClaw
 sudo npm install -g openclaw
 openclaw onboard
 
-# 2. Настройка Claude Code
-echo 'ANTHROPIC_API_KEY=your-key' >> ~/.openclaw/.env
+# 2. Настройка Claude Code (подписочная модель)
+# На ЛОКАЛЬНОМ компьютере сгенерируйте токен:
+#   npm install -g @anthropic-ai/claude-code
+#   claude setup-token
+# Скопируйте токен clsig_xxx...
+
+# На СЕРВЕРЕ вставьте токен:
+openclaw models auth paste-token --provider anthropic
+# Введите токен clsig_xxx...
+
+# Проверьте:
+openclaw models status
 
 # 3. Минимальная безопасная конфигурация
 cat > ~/.openclaw/openclaw.json << 'EOF'
