@@ -882,6 +882,7 @@
               "install/ansible",
               "install/nix",
               "install/docker",
+              "install/remote-server-setup",
               "railway",
               "render",
               "northflank",
